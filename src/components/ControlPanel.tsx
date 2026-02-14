@@ -63,11 +63,13 @@ export default function ControlPanel({
         const chapter = parseInt(chapterStr);
         const targetVerse = verseStr ? parseInt(verseStr) : 1;
 
-        // Find book by abbreviation or name (partial match)
+        // Find book by abbreviation, name, or pinyin (partial match)
         const foundBook = books.find(b =>
           b.abbreviation.toLowerCase().startsWith(bookQuery.toLowerCase()) ||
           b.name.toLowerCase().startsWith(bookQuery.toLowerCase()) ||
-          b.id.toLowerCase().startsWith(bookQuery.toLowerCase())
+          b.id.toLowerCase().startsWith(bookQuery.toLowerCase()) ||
+          (b.pinyin && b.pinyin.toLowerCase().startsWith(bookQuery.toLowerCase())) ||
+          (b.pinyinAbbr && b.pinyinAbbr.toLowerCase().startsWith(bookQuery.toLowerCase()))
         );
 
         if (foundBook && chapter >= 1 && chapter <= foundBook.chapters) {
@@ -266,12 +268,12 @@ export default function ControlPanel({
       <div className="grid grid-cols-2 gap-3 mt-3">
         {/* Preview Panel */}
         <div>
-          <h3 className="text-xs font-semibold text-gray-700 mb-1">
+          <h3 className="text-sm font-semibold text-gray-700 mb-1">
             Preview: {selectedBook?.name} {selectedChapter} ({verses.length} verses)
           </h3>
           <div
             id="preview-panel"
-            className="bg-gray-50 border border-gray-300 rounded p-2 h-48 overflow-y-auto text-xs"
+            className="bg-gray-50 border border-gray-300 rounded p-2 h-48 overflow-y-auto text-sm"
           >
             {verses.length > 0 ? (
               <>
@@ -294,10 +296,10 @@ export default function ControlPanel({
 
         {/* Reading History Panel */}
         <div>
-          <h3 className="text-xs font-semibold text-gray-700 mb-1">
+          <h3 className="text-sm font-semibold text-gray-700 mb-1">
             History ({readingHistory.length} items)
           </h3>
-          <div className="bg-gray-50 border border-gray-300 rounded p-2 h-48 overflow-y-auto">
+          <div className="bg-gray-50 border border-gray-300 rounded p-2 h-48 overflow-y-auto text-sm">
             {readingHistory.length > 0 ? (
               readingHistory.slice(0, 15).map((entry, index) => {
                 const book = books.find(b => b.id === entry.bookId);
@@ -316,19 +318,19 @@ export default function ControlPanel({
                         }));
                       }
                     }}
-                    className="w-full text-left text-xs px-1.5 py-0.5 rounded hover:bg-blue-100 transition mb-0.5 last:mb-0 block"
+                    className="w-full text-left px-1.5 py-0.5 rounded hover:bg-blue-100 transition mb-0.5 last:mb-0 block"
                   >
                     <span className="font-medium text-blue-600">
                       {book?.name || entry.bookId} {entry.chapter}:{verseNum}
                     </span>
-                    <span className="text-[10px] text-gray-500 ml-2">
+                    <span className="text-gray-500 ml-2">
                       {new Date(entry.timestamp).toLocaleDateString()}
                     </span>
                   </button>
                 );
               })
             ) : (
-              <p className="text-gray-500 italic text-xs">No history yet</p>
+              <p className="text-gray-500 italic">No history yet</p>
             )}
           </div>
         </div>
