@@ -5,11 +5,12 @@ const BIBLE_API_KEY = process.env.BIBLE_API_KEY || '';
 const BIBLE_API_URL = 'https://api.scripture.api.bible/v1';
 
 // Bible ID mappings for API.Bible
-// Note: ESV is not available in the free API. Using alternatives.
 const BIBLE_IDS: { [key: string]: string } = {
   'kjv': 'de4e12af7f28f599-02', // KJV
-  'niv': 'de4e12af7f28f599-01', // NIV (check if available with your API key)
-  'web': '9879dbb7cfe39e4d-04', // World English Bible (free alternative to ESV)
+  'niv': 'de4e12af7f28f599-01', // NIV
+  'web': '9879dbb7cfe39e4d-04', // World English Bible
+  'ccb': '3e27b3e43e1df61d-01', // Chinese Contemporary Bible (CCB - 当代译本圣经)
+  'cunpss': 'ccb9229763033d43-01', // Chinese Union Version Simplified (CUNPSS - 和合本简体)
 };
 
 // Book abbreviation to API.Bible book ID mapping

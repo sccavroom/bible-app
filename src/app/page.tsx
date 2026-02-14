@@ -57,7 +57,7 @@ export default function Home() {
       setError('');
       try {
         const isDualLanguage = languages.length === 2;
-        const selectedVersionLang = ['cus', 'cns'].includes(selectedVersion) ? 'zh' : 'en';
+        const selectedVersionLang = ['ccb', 'cunpss'].includes(selectedVersion) ? 'zh' : 'en';
 
         // Determine which version to load based on language selection
         let versionToLoad = selectedVersion;
@@ -65,7 +65,7 @@ export default function Home() {
 
         // If only Chinese is selected but current version is English, use Chinese version
         if (languages.includes('zh') && !languages.includes('en') && selectedVersionLang === 'en') {
-          versionToLoad = 'cus'; // Default Chinese version
+          versionToLoad = 'ccb'; // Default Chinese version
           versionLang = 'zh';
         }
         // If only English is selected but current version is Chinese, use English version
@@ -100,7 +100,7 @@ export default function Home() {
         // In dual language mode, load the other language
         if (isDualLanguage && languages.includes('zh') && languages.includes('en')) {
           // Load the opposite language
-          const otherVersion = versionLang === 'zh' ? 'kjv' : 'cus';
+          const otherVersion = versionLang === 'zh' ? 'kjv' : 'ccb';
 
           const otherData = await getChapter(selectedBookId, selectedChapter, otherVersion);
           const map: { [key: string]: string } = {};

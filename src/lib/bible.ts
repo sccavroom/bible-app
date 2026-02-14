@@ -57,16 +57,15 @@ export interface BibleVersion {
 }
 
 // Available Bible versions/languages
-// Note: Display names are user-friendly, but actual IDs map to GetBible API versions
 export const BIBLE_VERSIONS: BibleVersion[] = [
-  // English versions (GetBible API)
+  // English versions (Bible API - scripture.api.bible)
   { id: 'kjv', name: 'KJV', language: 'en' },
-  { id: 'web', name: 'NIV', language: 'en' }, // Using WEB, displayed as NIV
-  { id: 'basicenglish', name: 'ESV', language: 'en' }, // Using BBE, displayed as ESV
+  { id: 'niv', name: 'NIV', language: 'en' },
+  { id: 'web', name: 'WEB', language: 'en' },
 
-  // Chinese versions (GetBible API)
-  { id: 'cus', name: 'CUNPSS (和合本简体)', language: 'zh' },
-  { id: 'cns', name: 'CCB (当代圣经)', language: 'zh' }, // Using CNVS, displayed as CCB
+  // Chinese versions (Bible API - scripture.api.bible)
+  { id: 'ccb', name: 'CCB (当代译本圣经)', language: 'zh' },
+  { id: 'cunpss', name: 'CUNPSS (和合本简体)', language: 'zh' },
 ];
 
 // Cached Bible books data
@@ -96,36 +95,26 @@ export async function getChapter(
   if (versesCache[cacheKey]) return versesCache[cacheKey];
 
   try {
-    // Convert abbreviation to GetBible numeric ID
-    const getBibleBookId = toGetBibleId(bookId);
-
-    // Fetch from GetBible API
+    // All versions now use our Next.js API route (Bible API)
     const response = await fetch(
-      `https://api.getbible.net/v2/${version}/${getBibleBookId}/${chapter}.json`,
+      `/api/bible?version=${version}&bookId=${bookId}&chapter=${chapter}`,
       {
-        headers: { 'Accept': 'application/json' },
         cache: 'force-cache'
       }
     );
 
     if (!response.ok) {
-      throw new Error(`API returned ${response.status}`);
+      throw new Error(`Bible API returned ${response.status}`);
     }
 
     const data = await response.json();
 
-    // Transform GetBible format to app format
-    const verses: BibleVerse[] = data.verses.map((verse: any) => ({
-      id: `${bookId}-${chapter}-${verse.verse}`,
-      orgId: bookId,
-      bookId: bookId,
-      chapter: parseInt(verse.chapter),
-      verse: parseInt(verse.verse),
-      text: verse.text,
-    }));
+    if (data.error) {
+      throw new Error(data.error);
+    }
 
-    versesCache[cacheKey] = verses;
-    return verses;
+    versesCache[cacheKey] = data.verses;
+    return data.verses;
 
   } catch (error) {
     console.error(`Failed to fetch ${version}/${bookId} ${chapter}:`, error);
