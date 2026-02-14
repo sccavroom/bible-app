@@ -113,7 +113,7 @@ export default function PopupPage() {
           versionLang = 'en';
         }
 
-        setPrimaryLanguage(versionLang);
+        setPrimaryLanguage(versionLang as 'en' | 'zh');
 
         console.log('Loading verses:', { bookId, chapter, versionToLoad, versionLang });
         const data = await getChapter(bookId, chapter, versionToLoad);

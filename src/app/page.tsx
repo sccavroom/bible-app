@@ -74,7 +74,7 @@ export default function Home() {
           versionLang = 'en';
         }
 
-        setPrimaryLanguage(versionLang);
+        setPrimaryLanguage(versionLang as 'en' | 'zh');
 
         // Load the primary version
         const data = await getChapter(selectedBookId, selectedChapter, versionToLoad);

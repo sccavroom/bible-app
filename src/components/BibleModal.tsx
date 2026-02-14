@@ -58,7 +58,7 @@ export default function BibleModal({
           versionLang = 'en';
         }
 
-        setPrimaryLanguage(versionLang);
+        setPrimaryLanguage(versionLang as 'en' | 'zh');
 
         const data = await getChapter(bookId, chapter, versionToLoad);
         setVerses(data);
