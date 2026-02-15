@@ -15,6 +15,7 @@ export default function PopupPage() {
   const [version, setVersion] = useState('kjv');
   const [fontSize, setFontSize] = useState<FontSize>('base');
   const [primaryLanguage, setPrimaryLanguage] = useState<'en' | 'zh'>('en');
+  const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
   const initialized = useRef(false);
 
@@ -25,9 +26,9 @@ export default function PopupPage() {
       channelRef.current = channel;
 
       channel.onmessage = (event) => {
-        const { bookId: newBookId, chapter: newChapter, bookName: newBookName, version: newVersion, languages: newLanguages, fontSize: newFontSize } = event.data;
+        const { bookId: newBookId, chapter: newChapter, bookName: newBookName, version: newVersion, languages: newLanguages, fontSize: newFontSize, verse: newVerse } = event.data;
 
-        console.log('Popup received message:', { newBookId, newChapter, newBookName, newVersion, newLanguages, newFontSize });
+        console.log('Popup received message:', { newBookId, newChapter, newBookName, newVersion, newLanguages, newFontSize, newVerse });
 
         if (newBookId) setBookId(newBookId);
         if (newChapter !== undefined) setChapter(newChapter);
@@ -39,6 +40,7 @@ export default function PopupPage() {
           setLanguages(uniqueLanguages.length > 0 ? uniqueLanguages : ['en']);
         }
         if (newFontSize) setFontSize(newFontSize);
+        if (newVerse !== undefined) setSelectedVerse(newVerse);
       };
 
       console.log('BroadcastChannel opened');
@@ -177,7 +179,7 @@ export default function PopupPage() {
                 verseElement.style.backgroundColor = '#fef08a';
                 setTimeout(() => {
                   verseElement.style.backgroundColor = '';
-                }, 2000);
+                }, 5000);
               }
             }, 300);
           }
@@ -189,10 +191,33 @@ export default function PopupPage() {
     }
   }, [verses, bookId, chapter]);
 
+  // Handle verse selection (scroll/highlight)
+  useEffect(() => {
+    if (verses.length > 0 && selectedVerse !== null) {
+      const verseElement = document.getElementById(`verse-${bookId}-${chapter}-${selectedVerse}`);
+      if (verseElement) {
+        // Check if element is in viewport
+        const rect = verseElement.getBoundingClientRect();
+        const isInViewport = rect.top >= 0 && rect.bottom <= window.innerHeight;
+
+        if (!isInViewport) {
+          // Scroll to center if not visible
+          verseElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // Highlight the verse
+        verseElement.style.backgroundColor = '#fef08a';
+        setTimeout(() => {
+          verseElement.style.backgroundColor = '';
+        }, 2000);
+      }
+    }
+  }, [selectedVerse, verses, bookId, chapter]);
+
   return (
     <div className="w-full h-screen flex flex-col bg-gray-50">
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-3">
+      <div className="flex-1 overflow-y-auto px-4 py-3 scrollbar-hide">
         {!bookId || chapter === 0 ? (
           <div className="flex items-center justify-center py-20">
             <div className="text-lg text-gray-600">Waiting for selection from control panel...</div>

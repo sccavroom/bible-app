@@ -10,6 +10,7 @@ interface ControlPanelProps {
   books: BibleBook[];
   selectedBookId: string;
   selectedChapter: number;
+  selectedVerse: number | null;
   languages: Language[];
   selectedVersion: string;
   fontSize: FontSize;
@@ -17,6 +18,7 @@ interface ControlPanelProps {
   readingHistory: ReadingHistory[];
   onBookChange: (bookId: string) => void;
   onChapterChange: (chapter: number) => void;
+  onVerseChange: (verse: number | null) => void;
   onLanguageToggle: (language: Language) => void;
   onVersionChange: (version: string) => void;
   onFontSizeChange: (size: FontSize) => void;
@@ -28,6 +30,7 @@ export default function ControlPanel({
   books,
   selectedBookId,
   selectedChapter,
+  selectedVerse,
   languages,
   selectedVersion,
   fontSize,
@@ -35,6 +38,7 @@ export default function ControlPanel({
   readingHistory,
   onBookChange,
   onChapterChange,
+  onVerseChange,
   onLanguageToggle,
   onVersionChange,
   onFontSizeChange,
@@ -230,7 +234,7 @@ export default function ControlPanel({
         </div>
 
         {/* Chapter Selection */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-1">
           <label className="block text-xs font-medium text-gray-700 mb-1">Chapter</label>
           <select
             value={selectedChapter}
@@ -257,6 +261,41 @@ export default function ControlPanel({
                   }`}
                 >
                   {chapter}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Verse Selection */}
+        <div className="lg:col-span-1">
+          <label className="block text-xs font-medium text-gray-700 mb-1">Verse</label>
+          <select
+            value={selectedVerse ?? ''}
+            onChange={(e) => onVerseChange(e.target.value ? parseInt(e.target.value) : null)}
+            className="w-full px-2 py-1.5 border border-gray-300 rounded bg-white text-gray-900 text-sm mb-1"
+          >
+            <option value="">Select verse...</option>
+            {verses.map((verse) => (
+              <option key={verse.verse} value={verse.verse}>
+                Verse {verse.verse}
+              </option>
+            ))}
+          </select>
+          {/* Quick Verse Buttons - Inline */}
+          {verses.length > 0 && (
+            <div className="flex gap-1 flex-wrap">
+              {verses.slice(0, Math.min(12, verses.length)).map((verse) => (
+                <button
+                  key={verse.verse}
+                  onClick={() => onVerseChange(verse.verse)}
+                  className={`px-2 py-0.5 rounded text-xs ${
+                    selectedVerse === verse.verse
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                  }`}
+                >
+                  {verse.verse}
                 </button>
               ))}
             </div>

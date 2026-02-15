@@ -32,6 +32,7 @@ export default function Home() {
   const [popupWindow, setPopupWindow] = useState<Window | null>(null);
   const [readingHistory, setReadingHistory] = useState<ReadingHistory[]>([]);
   const [primaryLanguage, setPrimaryLanguage] = useState<'en' | 'zh'>('en');
+  const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
 
   useEffect(() => {
     const langs = getLanguages();
@@ -92,20 +93,18 @@ export default function Home() {
 
         // Check if there's a target verse from search
         const scrollTarget = sessionStorage.getItem('scrollToVerse');
-        let targetVerse = 1;
         if (scrollTarget) {
           try {
             const parsed = JSON.parse(scrollTarget);
             if (parsed.bookId === selectedBookId && parsed.chapter === selectedChapter) {
-              targetVerse = parsed.verse;
+              // Only add to history when coming from search
+              addToReadingHistory(selectedBookId, selectedChapter, parsed.verse);
+              setReadingHistory(getReadingHistory()); // Refresh history after adding
             }
           } catch (e) {
             // Ignore parse errors
           }
         }
-
-        addToReadingHistory(selectedBookId, selectedChapter, targetVerse);
-        setReadingHistory(getReadingHistory()); // Refresh history after adding
 
         // In dual language mode, load the other language
         if (isDualLanguage && languages.includes('zh') && languages.includes('en')) {
@@ -151,6 +150,7 @@ export default function Home() {
             version: selectedVersion,
             languages: languages,
             fontSize: fontSize,
+            verse: selectedVerse,
           });
         }
       };
@@ -175,13 +175,14 @@ export default function Home() {
           version: selectedVersion,
           languages: languages,
           fontSize: fontSize,
+          verse: selectedVerse,
         });
         channel.close();
       } catch (err) {
         console.warn('BroadcastChannel not available:', err);
       }
     }
-  }, [selectedBookId, selectedChapter, selectedBook, selectedVersion, languages, fontSize, popupWindow]);
+  }, [selectedBookId, selectedChapter, selectedBook, selectedVersion, languages, fontSize, selectedVerse, popupWindow]);
 
   const handleLanguageToggle = (language: Language) => {
     const updated = toggleLanguage(language);
@@ -221,6 +222,7 @@ export default function Home() {
             books={books}
             selectedBookId={selectedBookId}
             selectedChapter={selectedChapter}
+            selectedVerse={selectedVerse}
             languages={languages}
             selectedVersion={selectedVersion}
             fontSize={fontSize}
@@ -229,8 +231,13 @@ export default function Home() {
             onBookChange={(id) => {
               setSelectedBookId(id);
               setSelectedChapter(1);
+              setSelectedVerse(null);
             }}
-            onChapterChange={setSelectedChapter}
+            onChapterChange={(chapter) => {
+              setSelectedChapter(chapter);
+              setSelectedVerse(null);
+            }}
+            onVerseChange={setSelectedVerse}
             onLanguageToggle={handleLanguageToggle}
             onVersionChange={handleVersionChange}
             onFontSizeChange={handleFontSizeChange}
