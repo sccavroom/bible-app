@@ -4,6 +4,7 @@ import { BibleBook, BibleVersion, BIBLE_VERSIONS, BibleVerse } from '@/lib/bible
 import { Language, FontSize, ReadingHistory } from '@/lib/storage';
 import { translations } from '@/lib/translations';
 import LanguageSelector from './LanguageSelector';
+import BookBrowserModal from './BookBrowserModal';
 import { useState, useMemo } from 'react';
 
 interface ControlPanelProps {
@@ -24,6 +25,8 @@ interface ControlPanelProps {
   onFontSizeChange: (size: FontSize) => void;
   onOpenPopup: () => void;
   onHistoryClick: (bookId: string, chapter: number) => void;
+  onScrollPopup: (direction: string) => void;
+  isPopupOpen: boolean;
 }
 
 export default function ControlPanel({
@@ -44,69 +47,92 @@ export default function ControlPanel({
   onFontSizeChange,
   onOpenPopup,
   onHistoryClick,
+  onScrollPopup,
+  isPopupOpen,
 }: ControlPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [isBrowserOpen, setIsBrowserOpen] = useState(false);
   const selectedBook = books.find((b) => b.id === selectedBookId);
   const chapters = selectedBook
     ? Array.from({ length: selectedBook.chapters }, (_, i) => i + 1)
     : [];
   const t = translations['en']; // Always use English for control panel
 
-  // Handle verse reference search (e.g., "mat 1", "mat 1:12")
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const query = searchQuery.trim();
+  // Find a book by abbreviation, name, id, pinyin, or Chinese name (prefix match)
+  const findBook = (bookQuery: string): BibleBook | undefined => {
+    const q = bookQuery.toLowerCase().trim();
+    const qNoSpaces = q.replace(/\s/g, '');
+    return books.find(b =>
+      b.abbreviation.toLowerCase().startsWith(q) ||
+      b.name.toLowerCase().startsWith(q) ||
+      b.id.toLowerCase().startsWith(q) ||
+      (b.pinyin && b.pinyin.toLowerCase().replace(/\s/g, '').startsWith(qNoSpaces)) ||
+      (b.pinyinAbbr && b.pinyinAbbr.toLowerCase().startsWith(qNoSpaces)) ||
+      (b.nameChinese && b.nameChinese.startsWith(bookQuery.trim()))
+    );
+  };
 
-      // Check if query matches verse reference pattern (e.g., "mat 1", "mat 1:12")
-      const versePattern = /^([a-z]+)\s+(\d+)(?::(\d+))?$/i;
-      const match = query.match(versePattern);
+  // Navigate to a book/chapter, optionally scroll-highlighting a target verse
+  const goToReference = (book: BibleBook, chapter: number, targetVerse: number) => {
+    onBookChange(book.id);
+    onChapterChange(chapter);
+    setSearchQuery(''); // Clear search after navigation
 
-      if (match) {
-        const [, bookQuery, chapterStr, verseStr] = match;
-        const chapter = parseInt(chapterStr);
-        const targetVerse = verseStr ? parseInt(verseStr) : 1;
+    if (targetVerse > 1) {
+      // Store target verse in sessionStorage for popup to use
+      sessionStorage.setItem('scrollToVerse', JSON.stringify({
+        bookId: book.id,
+        chapter: chapter,
+        verse: targetVerse,
+      }));
 
-        // Find book by abbreviation, name, or pinyin (partial match)
-        const foundBook = books.find(b =>
-          b.abbreviation.toLowerCase().startsWith(bookQuery.toLowerCase()) ||
-          b.name.toLowerCase().startsWith(bookQuery.toLowerCase()) ||
-          b.id.toLowerCase().startsWith(bookQuery.toLowerCase()) ||
-          (b.pinyin && b.pinyin.toLowerCase().startsWith(bookQuery.toLowerCase())) ||
-          (b.pinyinAbbr && b.pinyinAbbr.toLowerCase().startsWith(bookQuery.toLowerCase()))
-        );
-
-        if (foundBook && chapter >= 1 && chapter <= foundBook.chapters) {
-          onBookChange(foundBook.id);
-          onChapterChange(chapter);
-          setSearchQuery(''); // Clear search after navigation
-
-          // Store target verse in sessionStorage for popup to use
-          if (targetVerse > 1) {
-            sessionStorage.setItem('scrollToVerse', JSON.stringify({
-              bookId: foundBook.id,
-              chapter: chapter,
-              verse: targetVerse
-            }));
-
-            // Scroll preview to target verse after a delay
-            setTimeout(() => {
-              const verseElement = document.getElementById(`preview-verse-${targetVerse}`);
-              if (verseElement) {
-                // Scroll the verse into view within its container
-                verseElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-                // Highlight briefly
-                verseElement.style.backgroundColor = '#fef08a';
-                verseElement.style.transition = 'background-color 0.3s';
-                setTimeout(() => {
-                  verseElement.style.backgroundColor = '';
-                }, 2000);
-              }
-            }, 800); // Increased delay to ensure content is loaded
-          }
+      // Scroll preview to target verse after a delay
+      setTimeout(() => {
+        const verseElement = document.getElementById(`preview-verse-${targetVerse}`);
+        if (verseElement) {
+          verseElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          verseElement.style.backgroundColor = '#fef08a';
+          verseElement.style.transition = 'background-color 0.3s';
+          setTimeout(() => {
+            verseElement.style.backgroundColor = '';
+          }, 2000);
         }
+      }, 800); // Delay to ensure content is loaded
+    }
+  };
+
+  // Handle Enter in the search box.
+  // Supports "<book> <chapter>[:<verse>]" where the book may start with a
+  // number (e.g. "1 tim 3", "2 kings 5", "mat 1:12"). When no chapter is
+  // typed, jumps to the first book currently shown in the filtered list.
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+
+    const query = searchQuery.trim();
+    if (!query) return;
+
+    // Lazy book group so the trailing number is read as the chapter:
+    // "1 tim 3" -> book "1 tim", chapter 3
+    const refPattern = /^(.+?)\s+(\d+)(?::(\d+))?$/;
+    const match = query.match(refPattern);
+
+    if (match) {
+      const [, bookQuery, chapterStr, verseStr] = match;
+      const chapter = parseInt(chapterStr);
+      const targetVerse = verseStr ? parseInt(verseStr) : 1;
+      const foundBook = findBook(bookQuery);
+
+      if (foundBook && chapter >= 1 && chapter <= foundBook.chapters) {
+        goToReference(foundBook, chapter, targetVerse);
+        return;
       }
+    }
+
+    // No chapter (or unmatched) — pick the top result currently in the list
+    const foundBook = findBook(query) || filteredBooks[0];
+    if (foundBook) {
+      goToReference(foundBook, 1, 1);
     }
   };
 
@@ -156,6 +182,24 @@ export default function ControlPanel({
             >
               🪟 Project
             </button>
+            {isPopupOpen && (
+              <div className="flex gap-1" title="Scroll projection window (or use ↑/↓/PgUp/PgDn keys)">
+                <button
+                  onClick={() => onScrollPopup('up')}
+                  className="px-3 py-2 bg-gray-700 text-white rounded font-bold hover:bg-gray-800 transition text-sm"
+                  aria-label="Scroll projection up"
+                >
+                  ▲
+                </button>
+                <button
+                  onClick={() => onScrollPopup('down')}
+                  className="px-3 py-2 bg-gray-700 text-white rounded font-bold hover:bg-gray-800 transition text-sm"
+                  aria-label="Scroll projection down"
+                >
+                  ▼
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -210,7 +254,16 @@ export default function ControlPanel({
 
         {/* Book Selection */}
         <div className="lg:col-span-2">
-          <label className="block text-xs font-medium text-gray-700 mb-1">Book / Search (e.g., "mat 1:12" + Enter)</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs font-medium text-gray-700">Book / Search (e.g., "mat 1:12" + Enter)</label>
+            <button
+              type="button"
+              onClick={() => setIsBrowserOpen(true)}
+              className="px-2 py-0.5 bg-indigo-600 text-white rounded text-xs font-medium hover:bg-indigo-700 transition whitespace-nowrap"
+            >
+              📖 Browse
+            </button>
+          </div>
           <input
             type="text"
             value={searchQuery}
@@ -374,6 +427,18 @@ export default function ControlPanel({
           </div>
         </div>
       </div>
+
+      {/* Book / Chapter Browser Modal */}
+      <BookBrowserModal
+        isOpen={isBrowserOpen}
+        onClose={() => setIsBrowserOpen(false)}
+        books={books}
+        selectedBookId={selectedBookId}
+        onSelect={(bookId, chapter) => {
+          onBookChange(bookId);
+          onChapterChange(chapter);
+        }}
+      />
     </div>
   );
 }

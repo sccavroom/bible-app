@@ -204,6 +204,54 @@ export default function Home() {
     setVersion(version); // Save to localStorage
   };
 
+  // Send a scroll command to the projection window
+  const sendScroll = (direction: string, amount?: number) => {
+    if (!popupWindow || popupWindow.closed) return;
+    try {
+      const channel = new BroadcastChannel('bible_app');
+      channel.postMessage({ type: 'scroll', direction, amount });
+      channel.close();
+    } catch (err) {
+      console.warn('BroadcastChannel not available:', err);
+    }
+  };
+
+  // Detect when the projection window is closed manually so scroll controls hide
+  useEffect(() => {
+    if (!popupWindow) return;
+    const interval = setInterval(() => {
+      if (popupWindow.closed) setPopupWindow(null);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [popupWindow]);
+
+  // Forward keyboard scrolling to the projection window while it's open,
+  // so the presenter can scroll it without giving it focus.
+  useEffect(() => {
+    if (!popupWindow || popupWindow.closed) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      // Don't hijack typing in inputs/selects/textareas
+      const target = e.target as HTMLElement | null;
+      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+
+      switch (e.key) {
+        case 'ArrowDown': sendScroll('down'); break;
+        case 'ArrowUp': sendScroll('up'); break;
+        case 'PageDown': sendScroll('pageDown'); break;
+        case 'PageUp': sendScroll('pageUp'); break;
+        case ' ': sendScroll(e.shiftKey ? 'pageUp' : 'pageDown'); break;
+        case 'Home': sendScroll('top'); break;
+        case 'End': sendScroll('bottom'); break;
+        default: return;
+      }
+      e.preventDefault();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [popupWindow]);
+
   const openPopupWindow = () => {
     if (popupWindow && !popupWindow.closed) {
       popupWindow.focus();
@@ -243,6 +291,8 @@ export default function Home() {
             onFontSizeChange={handleFontSizeChange}
             onOpenPopup={openPopupWindow}
             onHistoryClick={handleHistoryClick}
+            onScrollPopup={sendScroll}
+            isPopupOpen={!!popupWindow}
           />
 
         </>

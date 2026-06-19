@@ -17,7 +17,24 @@ export default function PopupPage() {
   const [primaryLanguage, setPrimaryLanguage] = useState<'en' | 'zh'>('en');
   const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const initialized = useRef(false);
+
+  // Scroll the content area in response to a command from the control panel
+  const handleScrollCommand = (direction: string, amount?: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const page = el.clientHeight * 0.9; // ~90% for page up/down
+    const step = amount ?? 120;
+    switch (direction) {
+      case 'up': el.scrollBy({ top: -step, behavior: 'smooth' }); break;
+      case 'down': el.scrollBy({ top: step, behavior: 'smooth' }); break;
+      case 'pageUp': el.scrollBy({ top: -page, behavior: 'smooth' }); break;
+      case 'pageDown': el.scrollBy({ top: page, behavior: 'smooth' }); break;
+      case 'top': el.scrollTo({ top: 0, behavior: 'smooth' }); break;
+      case 'bottom': el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }); break;
+    }
+  };
 
   // Setup BroadcastChannel for cross-window communication
   useEffect(() => {
@@ -26,6 +43,12 @@ export default function PopupPage() {
       channelRef.current = channel;
 
       channel.onmessage = (event) => {
+        // Remote scroll commands from the control panel
+        if (event.data?.type === 'scroll') {
+          handleScrollCommand(event.data.direction, event.data.amount);
+          return;
+        }
+
         const { bookId: newBookId, chapter: newChapter, bookName: newBookName, version: newVersion, languages: newLanguages, fontSize: newFontSize, verse: newVerse } = event.data;
 
         console.log('Popup received message:', { newBookId, newChapter, newBookName, newVersion, newLanguages, newFontSize, newVerse });
@@ -207,9 +230,16 @@ export default function PopupPage() {
 
         // Highlight the verse
         verseElement.style.backgroundColor = '#fef08a';
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           verseElement.style.backgroundColor = '';
         }, 60000);
+
+        // Clear this highlight (and its pending timer) as soon as a new
+        // verse is selected, so only one verse is ever highlighted at a time.
+        return () => {
+          clearTimeout(timeoutId);
+          verseElement.style.backgroundColor = '';
+        };
       }
     }
   }, [selectedVerse, verses, bookId, chapter]);
@@ -217,7 +247,7 @@ export default function PopupPage() {
   return (
     <div className="w-full h-screen flex flex-col bg-gray-50">
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 scrollbar-hide">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 scrollbar-hide">
         {!bookId || chapter === 0 ? (
           <div className="flex items-center justify-center py-20">
             <div className="text-lg text-gray-600">Waiting for selection from control panel...</div>
